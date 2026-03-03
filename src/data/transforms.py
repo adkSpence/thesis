@@ -13,7 +13,10 @@ from monai.transforms import (
     CropForegroundd,
     RandCropByPosNegLabeld,
     MapLabelValued,
+    SpatialPadd,
 )
+
+PATCH_SIZE = (128, 128, 128)
 
 
 def get_base_transformations():
@@ -28,9 +31,7 @@ def get_base_transformations():
         ),
         CropForegroundd(keys=["image", "label"], source_key="image"),
 
-        # ── CRITICAL: remap label 4 → 3 so classes are 0,1,2,3 ───────────
-        # BraTS2021 uses: 0=bg, 1=NCR, 2=ED, 4=ET  (no label 3)
-        # Our model outputs 4 channels so ET must be remapped to 3
+        # Remap BraTS2021 label 4 → 3  (dataset uses 0,1,2,4 — no label 3)
         MapLabelValued(
             keys=["label"],
             orig_labels=[0, 1, 2, 4],
@@ -38,10 +39,14 @@ def get_base_transformations():
         ),
 
         NormalizeIntensityd(keys=["image"], nonzero=True, channel_wise=True),
+
+        # Pad any volume smaller than patch size so crop never crashes
+        SpatialPadd(keys=["image", "label"], spatial_size=PATCH_SIZE),
+
         RandCropByPosNegLabeld(
             keys=["image", "label"],
             label_key="label",
-            spatial_size=(128, 128, 128),
+            spatial_size=PATCH_SIZE,
             pos=1,
             neg=1,
             num_samples=1,
@@ -67,15 +72,16 @@ def get_val_transformations():
             mode=("bilinear", "nearest"),
         ),
         CropForegroundd(keys=["image", "label"], source_key="image"),
-
-        # Same label remap for validation
         MapLabelValued(
             keys=["label"],
             orig_labels=[0, 1, 2, 4],
             target_labels=[0, 1, 2, 3],
         ),
-
         NormalizeIntensityd(keys=["image"], nonzero=True, channel_wise=True),
+
+        # Same pad for val — sliding window handles large volumes fine
+        SpatialPadd(keys=["image", "label"], spatial_size=PATCH_SIZE),
+
         EnsureTyped(keys=["image"], dtype=torch.float32),
         EnsureTyped(keys=["label"], dtype=torch.long),
     ])
