@@ -2,3 +2,20 @@ wandb
 data
 .venv/
 outputs
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# PyTorch checkpoints
+checkpoints/
+*.pth
+
+# IDE
+.idea/
+
+# Jupyter
+.ipynb_checkpoints/
