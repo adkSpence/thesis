@@ -12,39 +12,32 @@ from monai.transforms import (
     EnsureTyped,
     CropForegroundd,
     RandCropByPosNegLabeld,
-    ConcatItemsd,
-    DeleteItemsd,
+    MapLabelValued,
 )
 
 
 def get_base_transformations():
-    """
-    Training transforms for BraTS2021 raw format.
-    Input: dict with image = [t1, t1ce, t2, flair paths] and label = seg path
-    Output: dict with image = (4, H, W, D) tensor and label = (1, H, W, D) tensor
-    """
     return Compose([
-        # ── Load all 4 modalities + label ──────────────────────────────────
         LoadImaged(keys=["image", "label"]),
         EnsureChannelFirstd(keys=["image", "label"]),
-
-        # ── Orient to RAS ──────────────────────────────────────────────────
         Orientationd(keys=["image", "label"], axcodes="RAS"),
-
-        # ── Resample to 1mm isotropic ──────────────────────────────────────
         Spacingd(
             keys=["image", "label"],
             pixdim=(1.0, 1.0, 1.0),
             mode=("bilinear", "nearest"),
         ),
-
-        # ── Crop away empty background ─────────────────────────────────────
         CropForegroundd(keys=["image", "label"], source_key="image"),
 
-        # ── Normalise each modality independently ──────────────────────────
-        NormalizeIntensityd(keys=["image"], nonzero=True, channel_wise=True),
+        # ── CRITICAL: remap label 4 → 3 so classes are 0,1,2,3 ───────────
+        # BraTS2021 uses: 0=bg, 1=NCR, 2=ED, 4=ET  (no label 3)
+        # Our model outputs 4 channels so ET must be remapped to 3
+        MapLabelValued(
+            keys=["label"],
+            orig_labels=[0, 1, 2, 4],
+            target_labels=[0, 1, 2, 3],
+        ),
 
-        # ── Random patch crop biased toward tumour ─────────────────────────
+        NormalizeIntensityd(keys=["image"], nonzero=True, channel_wise=True),
         RandCropByPosNegLabeld(
             keys=["image", "label"],
             label_key="label",
@@ -53,26 +46,17 @@ def get_base_transformations():
             neg=1,
             num_samples=1,
         ),
-
-        # ── Spatial augmentation ───────────────────────────────────────────
         RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=0),
         RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=1),
         RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=2),
         RandRotate90d(keys=["image", "label"], prob=0.5, max_k=3),
-
-        # ── Intensity augmentation ─────────────────────────────────────────
         RandShiftIntensityd(keys=["image"], offsets=0.1, prob=0.5),
-
-        # ── Final type cast ────────────────────────────────────────────────
         EnsureTyped(keys=["image"], dtype=torch.float32),
         EnsureTyped(keys=["label"], dtype=torch.long),
     ])
 
 
 def get_val_transformations():
-    """
-    Validation transforms — no augmentation.
-    """
     return Compose([
         LoadImaged(keys=["image", "label"]),
         EnsureChannelFirstd(keys=["image", "label"]),
@@ -83,6 +67,14 @@ def get_val_transformations():
             mode=("bilinear", "nearest"),
         ),
         CropForegroundd(keys=["image", "label"], source_key="image"),
+
+        # Same label remap for validation
+        MapLabelValued(
+            keys=["label"],
+            orig_labels=[0, 1, 2, 4],
+            target_labels=[0, 1, 2, 3],
+        ),
+
         NormalizeIntensityd(keys=["image"], nonzero=True, channel_wise=True),
         EnsureTyped(keys=["image"], dtype=torch.float32),
         EnsureTyped(keys=["label"], dtype=torch.long),
