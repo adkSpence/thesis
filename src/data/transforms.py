@@ -12,18 +12,23 @@ from monai.transforms import (
     EnsureTyped,
     CropForegroundd,
     RandCropByPosNegLabeld,
+    ConcatItemsd,
+    DeleteItemsd,
 )
 
 
 def get_base_transformations():
     """
-    Training transforms for BraTS volumes.
-    Includes spatial augmentation and intensity normalisation.
+    Training transforms for BraTS2021 raw format.
+    Input: dict with image = [t1, t1ce, t2, flair paths] and label = seg path
+    Output: dict with image = (4, H, W, D) tensor and label = (1, H, W, D) tensor
     """
     return Compose([
-        # ── Load & orient ──────────────────────────────────────────────────
+        # ── Load all 4 modalities + label ──────────────────────────────────
         LoadImaged(keys=["image", "label"]),
         EnsureChannelFirstd(keys=["image", "label"]),
+
+        # ── Orient to RAS ──────────────────────────────────────────────────
         Orientationd(keys=["image", "label"], axcodes="RAS"),
 
         # ── Resample to 1mm isotropic ──────────────────────────────────────
@@ -33,14 +38,13 @@ def get_base_transformations():
             mode=("bilinear", "nearest"),
         ),
 
-        # ── Crop away empty background to save memory ──────────────────────
+        # ── Crop away empty background ─────────────────────────────────────
         CropForegroundd(keys=["image", "label"], source_key="image"),
 
-        # ── Intensity normalisation (per-channel, zero mean / unit std) ────
+        # ── Normalise each modality independently ──────────────────────────
         NormalizeIntensityd(keys=["image"], nonzero=True, channel_wise=True),
 
-        # ── Random patch crop  ─────────────────────────────────────────────
-        # Crops a 128x128x128 patch, biased toward tumour voxels
+        # ── Random patch crop biased toward tumour ─────────────────────────
         RandCropByPosNegLabeld(
             keys=["image", "label"],
             label_key="label",
@@ -67,7 +71,7 @@ def get_base_transformations():
 
 def get_val_transformations():
     """
-    Validation transforms — no augmentation, just normalisation.
+    Validation transforms — no augmentation.
     """
     return Compose([
         LoadImaged(keys=["image", "label"]),
