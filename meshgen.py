@@ -14,7 +14,7 @@ LABEL_CONFIG = {
 }
 
 # ── Data setup ─────────────────────────────────────────────────────────────────
-root_dir = "./data"
+root_dir = "datasource"
 my_transforms = Compose([
     LoadImaged(keys=["image", "label"]),
     EnsureChannelFirstd(keys=["image", "label"]),

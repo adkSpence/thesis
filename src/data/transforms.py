@@ -1,0 +1,85 @@
+import torch
+from monai.transforms import (
+    Compose,
+    LoadImaged,
+    EnsureChannelFirstd,
+    Orientationd,
+    Spacingd,
+    NormalizeIntensityd,
+    RandFlipd,
+    RandRotate90d,
+    RandShiftIntensityd,
+    EnsureTyped,
+    CropForegroundd,
+    RandCropByPosNegLabeld,
+)
+
+
+def get_base_transformations():
+    """
+    Training transforms for BraTS volumes.
+    Includes spatial augmentation and intensity normalisation.
+    """
+    return Compose([
+        # ── Load & orient ──────────────────────────────────────────────────
+        LoadImaged(keys=["image", "label"]),
+        EnsureChannelFirstd(keys=["image", "label"]),
+        Orientationd(keys=["image", "label"], axcodes="RAS"),
+
+        # ── Resample to 1mm isotropic ──────────────────────────────────────
+        Spacingd(
+            keys=["image", "label"],
+            pixdim=(1.0, 1.0, 1.0),
+            mode=("bilinear", "nearest"),
+        ),
+
+        # ── Crop away empty background to save memory ──────────────────────
+        CropForegroundd(keys=["image", "label"], source_key="image"),
+
+        # ── Intensity normalisation (per-channel, zero mean / unit std) ────
+        NormalizeIntensityd(keys=["image"], nonzero=True, channel_wise=True),
+
+        # ── Random patch crop  ─────────────────────────────────────────────
+        # Crops a 128x128x128 patch, biased toward tumour voxels
+        RandCropByPosNegLabeld(
+            keys=["image", "label"],
+            label_key="label",
+            spatial_size=(128, 128, 128),
+            pos=1,
+            neg=1,
+            num_samples=1,
+        ),
+
+        # ── Spatial augmentation ───────────────────────────────────────────
+        RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=0),
+        RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=1),
+        RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=2),
+        RandRotate90d(keys=["image", "label"], prob=0.5, max_k=3),
+
+        # ── Intensity augmentation ─────────────────────────────────────────
+        RandShiftIntensityd(keys=["image"], offsets=0.1, prob=0.5),
+
+        # ── Final type cast ────────────────────────────────────────────────
+        EnsureTyped(keys=["image"], dtype=torch.float32),
+        EnsureTyped(keys=["label"], dtype=torch.long),
+    ])
+
+
+def get_val_transformations():
+    """
+    Validation transforms — no augmentation, just normalisation.
+    """
+    return Compose([
+        LoadImaged(keys=["image", "label"]),
+        EnsureChannelFirstd(keys=["image", "label"]),
+        Orientationd(keys=["image", "label"], axcodes="RAS"),
+        Spacingd(
+            keys=["image", "label"],
+            pixdim=(1.0, 1.0, 1.0),
+            mode=("bilinear", "nearest"),
+        ),
+        CropForegroundd(keys=["image", "label"], source_key="image"),
+        NormalizeIntensityd(keys=["image"], nonzero=True, channel_wise=True),
+        EnsureTyped(keys=["image"], dtype=torch.float32),
+        EnsureTyped(keys=["label"], dtype=torch.long),
+    ])

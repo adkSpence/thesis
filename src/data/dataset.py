@@ -9,8 +9,8 @@ def get_dataloaders(root_dir: str, val_frac: float = 0.2, batch_size: int = 1, n
     Load BraTS from Decathlon and split into train/val loaders.
 
     Args:
-        root_dir:    Path to data directory
-        val_frac:    Fraction of data to use for validation (default 0.2)
+        root_dir:    Path to datasource directory
+        val_frac:    Fraction of datasource to use for validation (default 0.2)
         batch_size:  Batch size for DataLoader
         num_workers: Number of DataLoader workers
         num_samples: If set, only use this many cases (useful for smoke tests)

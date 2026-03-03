@@ -5,7 +5,7 @@ from monai.apps import DecathlonDataset
 from monai.transforms import Compose, LoadImaged, EnsureChannelFirstd, Orientationd
 
 # 1. NEW: Ensure the directory exists!
-root_dir = "./data"
+root_dir = "datasource"
 if not os.path.exists(root_dir):
     os.makedirs(root_dir)
     print(f"Created directory at {root_dir}")

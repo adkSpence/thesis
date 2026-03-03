@@ -19,8 +19,8 @@ from src.training.trainer import Trainer, build_teacher_model
 def parse_args():
     parser = argparse.ArgumentParser(description="BraTS Teacher Model Training")
 
-    parser.add_argument("--data_dir",     type=str,   default="./data",
-                        help="Root directory of BraTS / Decathlon data")
+    parser.add_argument("--data_dir",     type=str,   default="./datasource",
+                        help="Root directory of BraTS / Decathlon datasource")
     parser.add_argument("--checkpoint_dir", type=str, default="./checkpoints",
                         help="Where to save model checkpoints")
     parser.add_argument("--epochs",       type=int,   default=100,
@@ -32,7 +32,7 @@ def parse_args():
     parser.add_argument("--val_interval", type=int,   default=2,
                         help="Run validation every N epochs")
     parser.add_argument("--val_frac",     type=float, default=0.2,
-                        help="Fraction of data held out for validation")
+                        help="Fraction of datasource held out for validation")
     parser.add_argument("--num_workers",  type=int,   default=0,
                         help="DataLoader workers (0 = main process)")
     parser.add_argument("--run_name",     type=str,   default="teacher_baseline",

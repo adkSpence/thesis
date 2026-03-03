@@ -4,7 +4,7 @@ from monai.apps import DecathlonDataset
 from monai.transforms import Compose, LoadImaged, EnsureChannelFirstd, Orientationd
 
 # Use the same root_dir from before
-root_dir = "./data"
+root_dir = "datasource"
 
 # Assembly line (Transforms)
 my_transforms = Compose([
